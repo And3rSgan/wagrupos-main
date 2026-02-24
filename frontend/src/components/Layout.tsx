@@ -264,7 +264,16 @@ export function Layout() {
           <Outlet />
         </main>
         <footer className="zest-footer" style={{ textAlign: "center" }}>
-          <small>© {new Date().getFullYear()} • Desenvolvido por Zgestor</small>
+          <small>
+  © {new Date().getFullYear()} • CNPJ 64.462.233/0001-99{" "}
+  <a 
+    href="https://zgestor.com" 
+    target="_blank" 
+    rel="noopener noreferrer"
+  >
+    Zgestor.com
+  </a>
+</small>
         </footer>
       </div>
     </div>
