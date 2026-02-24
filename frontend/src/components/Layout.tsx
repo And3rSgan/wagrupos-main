@@ -264,7 +264,7 @@ export function Layout() {
           <Outlet />
         </main>
         <footer className="zest-footer" style={{ textAlign: "center" }}>
-          <small>© {new Date().getFullYear()} • Desenvolvido por PLW Design</small>
+          <small>© {new Date().getFullYear()} • Desenvolvido por Zgestor</small>
         </footer>
       </div>
     </div>
