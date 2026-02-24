@@ -1,0 +1,30 @@
+{
+  "name": "whatsapp-group-sender-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.8",
+    "@mui/material": "^7.3.8",
+    "axios": "^1.6.7",
+    "bootstrap": "^5.3.3",
+    "qrcode.react": "^4.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react-swc": "^3.5.0",
+    "typescript": "^5.4.2",
+    "vite": "^5.0.11"
+  }
+}

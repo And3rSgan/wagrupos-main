@@ -1,0 +1,6 @@
+# Legado: auth WhatsApp agora está no Postgres (WhatsappAuthState); ignorar pasta se existir
+baileys_auth/
+
+# Pastas de outra lib (whatsapp-web.js) – este projeto não as usa; ignorar se existirem
+.wwebjs_auth
+.wwebjs_cache

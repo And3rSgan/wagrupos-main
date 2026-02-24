@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  SUPERVISOR
+  USER
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String?
+  email           String    @unique
+  passwordHash    String
+  role            UserRole  @default(USER)
+  company         Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId       String?
+  menuPermissions Json?     // array de menu keys que o usuário pode acessar (null = padrão pela role)
+  createdAt       DateTime  @default(now())
+
+  campaigns        Campaign[]
+  sends            MessageSend[]
+  products         Product[]
+  messageTemplates MessageTemplate[]
+  templateTypes    TemplateType[]
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  email     String?
+  phone     String?
+  document  String?
+  isActive  Boolean  @default(true)
+  dispatchSettings Json? // preset + delayMinSec, delayMaxSec, batchSize, pauseBetweenBatchesSec
+  createdAt DateTime @default(now())
+
+  users          User[]
+  subscription   Subscription?
+  invoices       Invoice[]
+  whatsappSessions WhatsappSession[]
+}
+
+model Plan {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  price     Float
+  limits    Json
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                 String    @id @default(cuid())
+  company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId          String    @unique
+  plan               Plan      @relation(fields: [planId], references: [id])
+  planId             String
+  status             String    @default("active")
+  billingDay         Int       @default(1) // dia do mês (1-28) para vencimento
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  trialEndsAt        DateTime? // fim do período de teste; null = não usa teste
+  createdAt          DateTime  @default(now())
+
+  invoices Invoice[]
+}
+
+model Invoice {
+  id              String         @id @default(cuid())
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId       String
+  subscription    Subscription?  @relation(fields: [subscriptionId], references: [id])
+  subscriptionId  String?
+  amount          Float
+  status          String         @default("pending")
+  mpPaymentId     String?
+  mpPreferenceId  String?
+  upgradePlanId   String?        // quando preenchido = fatura de upgrade; ao pagar, troca plano
+  dueDate         DateTime
+  paidAt          DateTime?
+  createdAt       DateTime       @default(now())
+
+  @@index([companyId])
+}
+
+model SystemSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+model TemplateType {
+  id       String   @id @default(cuid())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  slug     String   // valor interno: oferta_relampago, cupom, etc
+  label    String   // nome exibido: Oferta Relâmpago, Cupom, etc
+  sortOrder Int     @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, slug])
+}
+
+model WhatsappSession {
+  id        String   @id @default(cuid())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  name      String
+  isDefault Boolean  @default(false)
+  status    String   @default("disconnected") // disconnected | connected | qr_pending | ban_risk
+  waPushName   String?
+  waPhone      String?
+  waJid        String?
+  waAvatarUrl  String?
+  lastConnectedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  groups    WhatsappGroup[]
+  campaigns Campaign[]
+}
+
+/// Estado de autenticação WhatsApp (Baileys/libzapitu) por sessão — substitui pasta baileys_auth.
+model WhatsappAuthState {
+  id        String   @id @default(cuid())
+  sessionId String   // ID da sessão (WhatsappSession.id)
+  key       String   // chave do estado: creds.json, session-xxx.json, app-state-sync-key-xxx.json, etc.
+  value     Json     // valor em JSON (creds, chaves Signal, etc.)
+
+  @@unique([sessionId, key])
+  @@index([sessionId])
+}
+
+model WhatsappGroup {
+  id              String   @id @default(cuid())
+  waId            String   // WhatsApp group JID / ID
+  name            String
+  session         WhatsappSession @relation(fields: [sessionId], references: [id])
+  sessionId       String
+  participantCount Int?    // quantidade de membros
+  avatarUrl        String? // foto do grupo (URL)
+  source           String  @default("whatsapp") // whatsapp | imported
+  createdAt        DateTime @default(now())
+
+  campaignTargets CampaignTarget[]
+  sends     MessageSend[]
+
+  @@unique([sessionId, waId])
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  session     WhatsappSession @relation(fields: [sessionId], references: [id])
+  sessionId   String
+
+  title       String?
+  messageText String
+  linkUrl     String?
+  imagePath   String? // arquivo salvo em /uploads
+
+  productId    String?  // produto associado
+  product      Product? @relation(fields: [productId], references: [id])
+  templateId   String?  // template usado
+  template     MessageTemplate? @relation(fields: [templateId], references: [id])
+
+  status       String   @default("draft") // draft | queued | sent | failed | paused
+  errorMessage String?  // motivo da falha (ex: limite diário) para campanhas agendadas
+  sentAt       DateTime? // quando foi enviada (para limite diário)
+  scheduledAt  DateTime? // agendamento: data/hora para disparo
+  repeatRule   String?  // none | daily | weekly
+  mentionAll   Boolean  @default(false) // ao disparar, mencionar todos os participantes do grupo
+  createdAt    DateTime @default(now())
+
+  targets CampaignTarget[]
+  sends   MessageSend[]
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  title         String
+  price         String   // ex: "R$ 29,90"
+  oldPrice      String?  // preço antigo
+  discountPercent Int?   // % desconto
+  coupon        String?  // código cupom
+  link          String?  // link da oferta
+  store         String?  // loja/origem: Shopee, Amazon, etc
+  category      String?
+  tags          String?  // separado por vírgula
+
+  status        String   @default("active") // active | expired
+  validUntil    DateTime? // validade da oferta
+
+  createdAt     DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  images    ProductImage[]
+  campaigns Campaign[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  filePath  String
+  type      String   @default("image") // image | video
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model MessageTemplate {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  name        String   // ex: "Oferta Relâmpago"
+  templateType String  // oferta_relampago | cupom | frete_gratis | custom
+  body        String   // texto com placeholders {titulo}, {preco}, etc e spintax {a|b|c}
+  cta         String?  // call to action
+  createdAt   DateTime @default(now())
+
+  campaigns Campaign[]
+}
+
+model CampaignTarget {
+  id        String @id @default(cuid())
+  campaign  Campaign @relation(fields: [campaignId], references: [id])
+  campaignId String
+  group     WhatsappGroup @relation(fields: [groupId], references: [id])
+  groupId   String
+
+  @@unique([campaignId, groupId])
+}
+
+model MessageSend {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId String?
+  group      WhatsappGroup @relation(fields: [groupId], references: [id])
+  groupId    String
+  messageText String
+  linkUrl     String?
+  imagePath   String?
+  status     String   @default("pending") // pending | sent | failed
+  error      String?
+  createdAt  DateTime @default(now())
+
+  linkClicks LinkClick[]
+}
+
+model LinkClick {
+  id           String   @id @default(cuid())
+  messageSend  MessageSend @relation(fields: [messageSendId], references: [id])
+  messageSendId String
+  linkUrl      String
+  clickedAt    DateTime @default(now())
+}
+

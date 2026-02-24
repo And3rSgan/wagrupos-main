@@ -1,0 +1,338 @@
+/* WowDash-inspired Admin Dashboard - Light/Dark */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root,
+[data-bs-theme="light"] {
+  --zest-sidebar-bg: #ffffff;
+  --zest-sidebar-text: #0f172a;
+  --zest-sidebar-text-muted: #64748b;
+  --zest-sidebar-hover: rgba(0,0,0,0.06);
+  --zest-sidebar-active: #e2e8f0;
+  --zest-sidebar-border: rgba(0,0,0,0.08);
+  --zest-topbar-bg: #ffffff;
+  --zest-topbar-border: rgba(0,0,0,0.06);
+  --zest-content-bg: #f8fafc;
+  --zest-footer-bg: #ffffff;
+  --zest-footer-border: rgba(0,0,0,0.06);
+  --zest-footer-text: #64748b;
+  --zest-text-primary: #0f172a;
+  --zest-text-secondary: #64748b;
+}
+
+[data-bs-theme="dark"] {
+  --zest-sidebar-bg: #0f172a;
+  --zest-sidebar-text: rgba(255,255,255,0.9);
+  --zest-sidebar-text-muted: rgba(255,255,255,0.5);
+  --zest-sidebar-hover: rgba(255,255,255,0.08);
+  --zest-sidebar-active: rgba(255,255,255,0.12);
+  --zest-sidebar-border: rgba(255,255,255,0.08);
+  --zest-topbar-bg: #1e293b;
+  --zest-topbar-border: rgba(255,255,255,0.08);
+  --zest-content-bg: #0f172a;
+  --zest-footer-bg: #1e293b;
+  --zest-footer-border: rgba(255,255,255,0.08);
+  --zest-footer-text: #94a3b8;
+  --zest-text-primary: #f1f5f9;
+  --zest-text-secondary: #94a3b8;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  overflow-x: hidden;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--zest-content-bg);
+  color: var(--zest-text-primary);
+}
+
+/* Layout - WowDash structure */
+.zest-wrapper {
+  min-height: 100vh;
+  display: flex;
+}
+
+.zest-sidebar {
+  width: 280px;
+  height: 100vh;
+  max-height: 100vh;
+  background: var(--zest-sidebar-bg);
+  color: var(--zest-sidebar-text);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1030;
+  transition: width 0.25s ease, transform 0.25s ease;
+  overflow: hidden;
+  border-right: 1px solid var(--zest-sidebar-border, var(--zest-topbar-border));
+}
+
+.zest-sidebar.collapsed {
+  width: 72px;
+}
+
+.zest-sidebar .zest-logo span,
+.zest-sidebar .zest-menu-item span:last-child,
+.zest-sidebar .zest-menu-title {
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+
+.zest-sidebar.collapsed .zest-logo span:not(:first-child),
+.zest-sidebar.collapsed .zest-menu-item span:last-child,
+.zest-sidebar.collapsed .zest-menu-title {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  display: inline-block;
+}
+
+.zest-sidebar.collapsed .zest-logo img {
+  width: 48px;
+  height: 48px;
+  max-width: 48px;
+  max-height: 48px;
+}
+
+.zest-logo-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+[data-bs-theme="light"] .zest-logo-initial {
+  background: rgba(0,0,0,0.08);
+  color: #0f172a;
+}
+
+[data-bs-theme="dark"] .zest-logo-initial {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
+.zest-logo {
+  font-weight: 700;
+  font-size: 1.25rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--zest-sidebar-border, var(--zest-topbar-border));
+  flex-shrink: 0;
+}
+
+.zest-logo a {
+  color: var(--zest-sidebar-text);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.zest-menu {
+  flex: 1;
+  min-height: 0; /* permite scroll em flex child */
+  padding: 0.75rem 0.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.zest-menu::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.zest-menu-title {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--zest-sidebar-text-muted);
+  margin: 1rem 0.75rem 0.5rem;
+  padding: 0;
+}
+
+.zest-menu-title:first-of-type { margin-top: 0; }
+
+.zest-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  color: var(--zest-sidebar-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 2px;
+  transition: all 0.2s ease;
+}
+
+.zest-menu-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zest-menu-icon svg { width: 100%; height: 100%; }
+
+.zest-menu-item:hover {
+  background: var(--zest-sidebar-hover);
+  color: var(--zest-sidebar-text);
+}
+
+.zest-menu-item.active {
+  background: var(--zest-sidebar-active);
+  color: var(--zest-sidebar-text);
+  font-weight: 600;
+}
+
+
+.zest-main {
+  flex: 1;
+  min-width: 0; /* permite flex child encolher e evita rolagem lateral na página */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  margin-left: 280px;
+  transition: margin-left 0.25s ease;
+  overflow-x: hidden;
+}
+
+.zest-sidebar.collapsed ~ .zest-main {
+  margin-left: 72px;
+}
+
+.zest-topbar {
+  background: var(--zest-topbar-bg);
+  border-bottom: 1px solid var(--zest-topbar-border);
+  padding: 0.875rem 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.zest-topbar-title {
+  font-weight: 600;
+  color: var(--zest-text-primary);
+  font-size: 1rem;
+}
+
+.zest-content {
+  padding: 1.5rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.zest-footer {
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid var(--zest-footer-border);
+  background: var(--zest-footer-bg);
+  font-size: 0.8rem;
+  color: var(--zest-footer-text);
+}
+
+/* Page header */
+.page-header { margin-bottom: 1.5rem; }
+
+.page-title {
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: var(--zest-text-primary);
+  margin: 0 0 0.25rem 0;
+}
+
+.page-subtitle {
+  color: var(--zest-text-secondary);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* Mobile responsividade (< 768px) */
+@media (max-width: 767px) {
+  .zest-sidebar {
+    transform: translateX(-100%);
+    box-shadow: 4px 0 12px rgba(0,0,0,0.15);
+  }
+
+  .zest-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .zest-sidebar.collapsed {
+    transform: translateX(-100%);
+  }
+
+  .zest-sidebar.collapsed.mobile-open {
+    transform: translateX(0);
+  }
+
+  .zest-main {
+    margin-left: 0 !important;
+  }
+
+  .zest-topbar {
+    padding: 0.5rem 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .zest-topbar-title {
+    font-size: 0.8rem;
+    line-height: 1.3;
+    max-width: 100%;
+  }
+
+  .zest-topbar-title small {
+    font-size: 0.7rem;
+    margin-top: 1px;
+  }
+
+  .zest-content {
+    padding: 0.75rem 1rem;
+  }
+
+  .zest-footer {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.7rem;
+  }
+
+  .page-title {
+    font-size: 1.15rem !important;
+  }
+
+  .page-subtitle {
+    font-size: 0.8rem !important;
+  }
+
+  /* Conteúdo das páginas - tabelas, botões, chips */
+  .zest-content .MuiTableCell-root {
+    padding: 8px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .zest-content .MuiTableHead .MuiTableCell-root {
+    font-size: 0.75rem !important;
+  }
+
+  .zest-content .MuiButton-root {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+
+  .zest-content .MuiChip-root {
+    font-size: 0.7rem;
+    height: 24px;
+  }
+}
