@@ -221,8 +221,11 @@ export default function DashboardPage() {
 
       {/* Fila atual */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-          Fila atual
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+          Conteúdos agendados
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Campanhas na fila de envio. Pause as que estão em execução ou nas próximas; retome as pausadas. Para criar ou editar agendamentos, vá em <strong>Campanhas</strong>.
         </Typography>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -237,7 +240,7 @@ export default function DashboardPage() {
                   </Typography>
                 ) : (
                   data.queue.running.map((c) => (
-                    <Box key={c.id} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <Box key={c.id} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
                       <PlayArrowIcon color="success" fontSize="small" />
                       <Typography variant="body2">{c.title || "Sem título"}</Typography>
                       <Button size="small" onClick={() => handlePause(c.id)} disabled={actionLoading === c.id}>
@@ -261,12 +264,15 @@ export default function DashboardPage() {
                   </Typography>
                 ) : (
                   data.queue.upcoming.map((c) => (
-                    <Box key={c.id} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <Box key={c.id} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
                       <ScheduleIcon color="info" fontSize="small" />
                       <Typography variant="body2">{c.title || "Sem título"}</Typography>
                       <Typography variant="caption" color="text.secondary">
                         {new Date(c.scheduledAt).toLocaleString("pt-BR")}
                       </Typography>
+                      <Button size="small" onClick={() => handlePause(c.id)} disabled={actionLoading === c.id}>
+                        Pausar
+                      </Button>
                     </Box>
                   ))
                 )}
@@ -280,9 +286,14 @@ export default function DashboardPage() {
               </Typography>
               <Box sx={{ mt: 1 }}>
                 {data.queue.paused.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Nenhuma pausada
-                  </Typography>
+                  <>
+                    <Typography variant="body2" color="text.secondary">
+                      Nenhuma pausada
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                      Use &quot;Pausar&quot; nas campanhas em execução ou nas próximas para pausar.
+                    </Typography>
+                  </>
                 ) : (
                   data.queue.paused.map((c) => (
                     <Box key={c.id} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
@@ -320,9 +331,12 @@ export default function DashboardPage() {
         </Paper>
       )}
 
-      <Box sx={{ mt: 3 }}>
+      <Box sx={{ mt: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
         <Button component={Link} to="/campaigns" variant="contained" color="primary">
           Nova campanha / Agendar disparo
+        </Button>
+        <Button component={Link} to="/campaigns" variant="outlined">
+          Gerenciar campanhas
         </Button>
       </Box>
     </PageContainer>

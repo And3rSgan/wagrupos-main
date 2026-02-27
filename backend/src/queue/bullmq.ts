@@ -79,6 +79,8 @@ export { QUEUE_NAMES };
 /** Processadores pesados: campanhas, faturas. Workers só rodam se Redis estiver ok. */
 export function startBullMQWorkers(handlers: {
   processScheduledCampaigns: () => Promise<void>;
+  sendCampaign?: (campaignId: string, userId: string) => Promise<void>;
+  resendCampaignFailed?: (campaignId: string, userId: string) => Promise<void>;
   generateMonthlyInvoices: () => Promise<void>;
   markOverdueInvoices: () => Promise<void>;
 }): void {
@@ -88,8 +90,18 @@ export function startBullMQWorkers(handlers: {
   try {
     const wCampaigns = new Worker(
       QUEUE_NAMES.CAMPAIGNS,
-      async (_job: Job) => {
-        await handlers.processScheduledCampaigns();
+      async (job: Job) => {
+        if (job.name === "sendCampaign" && handlers.sendCampaign) {
+          const { campaignId, userId } = job.data as { campaignId: string; userId: string };
+          if (campaignId && userId) await handlers.sendCampaign(campaignId, userId);
+          return;
+        }
+        if (job.name === "resendCampaignFailed" && handlers.resendCampaignFailed) {
+          const { campaignId, userId } = job.data as { campaignId: string; userId: string };
+          if (campaignId && userId) await handlers.resendCampaignFailed(campaignId, userId);
+          return;
+        }
+        if (job.name === "run") await handlers.processScheduledCampaigns();
       },
       { connection: conn, concurrency: 1 }
     );

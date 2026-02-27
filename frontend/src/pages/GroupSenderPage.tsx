@@ -10,12 +10,21 @@ import Paper from "@mui/material/Paper";
 import Autocomplete from "@mui/material/Autocomplete";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
+import Box from "@mui/material/Box";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 import GroupsIcon from "@mui/icons-material/Groups";
 import { ApiTermsDialog } from "../components/ApiTermsDialog";
 
+type Session = { id: string; name: string; isDefault?: boolean };
+type GroupWithSession = GroupWithAvatar & { sessionId: string; sessionName?: string };
+
 export default function GroupSenderPage() {
-  const [groups, setGroups] = useState<GroupWithAvatar[]>([]);
+  const [groups, setGroups] = useState<GroupWithSession[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<GroupWithAvatar[]>([]);
+  const [connectionTab, setConnectionTab] = useState<string>("all");
+  const [groupSearch, setGroupSearch] = useState("");
   const [message, setMessage] = useState("");
   const [mentionAll, setMentionAll] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -32,6 +41,13 @@ export default function GroupSenderPage() {
   const navigate = useNavigate();
 
   const atDailyLimit = limits ? limits.usedToday >= limits.limit : false;
+
+  const groupsByTab =
+    connectionTab === "all" ? groups : groups.filter((g) => g.sessionId === connectionTab);
+  const groupSearchLower = groupSearch.trim().toLowerCase();
+  const filteredGroups = groupSearchLower
+    ? groupsByTab.filter((g) => g.name.toLowerCase().includes(groupSearchLower))
+    : groupsByTab;
 
   useEffect(() => {
     void loadGroups();
@@ -55,8 +71,15 @@ export default function GroupSenderPage() {
     setLoadingGroups(true);
     setFeedback(null);
     try {
-      const res = await api.get<GroupWithAvatar[]>("/groups");
-      setGroups(res.data);
+      const [groupsRes, sessionsRes] = await Promise.all([
+        api.get<GroupWithSession[]>("/groups"),
+        api.get<Session[]>("/whatsapp/sessions"),
+      ]);
+      setGroups(groupsRes.data);
+      setSessions(sessionsRes.data.map((s) => ({ id: s.id, name: s.name, isDefault: s.isDefault })));
+      if (connectionTab !== "all" && !sessionsRes.data.some((s) => s.id === connectionTab)) {
+        setConnectionTab("all");
+      }
     } catch (err: any) {
       if (err?.response?.status === 401) {
         navigate("/login");
@@ -79,6 +102,20 @@ export default function GroupSenderPage() {
       setLoadingGroups(false);
       setFeedback({ type: "error", message: "Erro ao sincronizar grupos." });
     }
+  }
+
+  /** Seleciona todos os grupos da aba/conexão atual (e da busca). Adiciona à seleção existente. */
+  function selectAllCurrentTab() {
+    setSelectedGroups((prev) => {
+      const prevIds = new Set(prev.map((g) => g.id));
+      const toAdd = filteredGroups.filter((g) => !prevIds.has(g.id));
+      return toAdd.length === 0 ? prev : [...prev, ...toAdd];
+    });
+  }
+
+  /** Remove todos os grupos da seleção. */
+  function deselectAll() {
+    setSelectedGroups([]);
   }
 
   async function doSend() {
@@ -157,11 +194,48 @@ export default function GroupSenderPage() {
       )}
 
       <Paper component="form" onSubmit={handleSubmit} sx={{ p: 2 }}>
+        {sessions.length > 1 && (
+          <Tabs
+            value={connectionTab}
+            onChange={(_, value) => setConnectionTab(value)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ mb: 2, minHeight: 40, "& .MuiTab-root": { minHeight: 40, py: 0 } }}
+          >
+            <Tab label="Todas" value="all" />
+            {sessions.map((s) => (
+              <Tab
+                key={s.id}
+                label={`${s.name} (${groups.filter((g) => g.sessionId === s.id).length})`}
+                value={s.id}
+              />
+            ))}
+          </Tabs>
+        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 2 }}>
+          <TextField
+            size="small"
+            placeholder="Pesquisar grupo..."
+            value={groupSearch}
+            onChange={(e) => setGroupSearch(e.target.value)}
+            sx={{ flex: "1 1 200px", minWidth: 200, "& .MuiInputBase-root": { bgcolor: "background.paper" } }}
+          />
+          {filteredGroups.length > 0 && (
+            <>
+              <Button size="small" variant="outlined" onClick={selectAllCurrentTab}>
+                Selecionar todos{connectionTab !== "all" ? " (desta conexão)" : ""}
+              </Button>
+              <Button size="small" variant="outlined" color="secondary" onClick={deselectAll} disabled={selectedGroups.length === 0}>
+                Desmarcar todos
+              </Button>
+            </>
+          )}
+        </Box>
         <Autocomplete
           multiple
           value={selectedGroups}
           onChange={(_, v) => setSelectedGroups(v)}
-          options={groups}
+          options={filteredGroups}
           getOptionLabel={(g) => g.name}
           loading={loadingGroups}
           isOptionEqualToValue={(a, b) => a.id === b.id}

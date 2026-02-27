@@ -60,8 +60,15 @@ export const env = {
   userLimit: Number(process.env.USER_LIMIT || 10000),
   connectionsLimit: Number(process.env.CONNECTIONS_LIMIT || 100000),
   closedSendByMe: process.env.CLOSED_SEND_BY_ME === "true",
+  /** Origens permitidas para CORS (uma ou várias separadas por vírgula). Ex: https://app.com,https://www.app.com */
+  corsOrigins: (() => {
+    const raw = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "http://localhost:5173").trim();
+    const list = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    return list.length > 0 ? list : ["http://localhost:5173"];
+  })(),
+  /** Primeira origem CORS (compatibilidade). */
   corsOrigin:
-    process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "http://localhost:5173",
+    process.env.CORS_ORIGIN?.split(",")[0]?.trim() || process.env.FRONTEND_URL || "http://localhost:5173",
   /** Níveis de log exibidos (separados por vírgula). Ex: WARN,SUCCESS,ERROR ou INFO,WARN,ERROR,SUCCESS */
   logLevel:
     process.env.LOG_LEVEL?.trim() ||

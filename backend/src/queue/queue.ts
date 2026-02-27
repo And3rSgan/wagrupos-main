@@ -5,8 +5,9 @@
 import cron from "node-cron";
 import { prisma } from "../prismaClient";
 import { logger } from "../utils/logger";
-import { sendCampaign } from "../services/campaignSendService";
+import { sendCampaign, resendCampaignFailed } from "../services/campaignSendService";
 import { addJobSafe, QUEUE_NAMES, startBullMQWorkers } from "./bullmq";
+import { emitCampaignUpdated } from "../socketIo";
 
 export async function processScheduledCampaigns(): Promise<void> {
   const now = new Date();
@@ -16,30 +17,12 @@ export async function processScheduledCampaigns(): Promise<void> {
       scheduledAt: { lte: now },
     },
     orderBy: { scheduledAt: "asc" },
+    select: { id: true, userId: true, title: true, scheduledAt: true, repeatRule: true, repeatWeekdays: true, user: { select: { companyId: true } } },
   });
 
   for (const c of campaigns) {
     try {
       await sendCampaign(c.id, c.userId);
-
-      if (c.repeatRule === "daily") {
-        const next = new Date(c.scheduledAt!);
-        next.setDate(next.getDate() + 1);
-        await prisma.campaign.update({
-          where: { id: c.id },
-          data: { scheduledAt: next, status: "queued", errorMessage: null },
-        });
-        logger.info("QUEUE", `Campanha ${c.id} reagendada para ${next.toISOString()} (diário)`);
-      } else if (c.repeatRule === "weekly") {
-        const next = new Date(c.scheduledAt!);
-        next.setDate(next.getDate() + 7);
-        await prisma.campaign.update({
-          where: { id: c.id },
-          data: { scheduledAt: next, status: "queued", errorMessage: null },
-        });
-        logger.info("QUEUE", `Campanha ${c.id} reagendada para ${next.toISOString()} (semanal)`);
-      }
-
       logger.success("QUEUE", `Campanha ${c.id} enviada (${c.title || "Sem título"})`);
     } catch (err: any) {
       logger.error("QUEUE", `Falha ao enviar campanha ${c.id}`, err);
@@ -51,6 +34,7 @@ export async function processScheduledCampaigns(): Promise<void> {
         where: { id: c.id },
         data: { status: "failed", errorMessage },
       });
+      if (c.user?.companyId) emitCampaignUpdated(c.user.companyId);
     }
   }
 }
@@ -125,6 +109,8 @@ function runWithFallback(
 export function startQueue() {
   startBullMQWorkers({
     processScheduledCampaigns,
+    sendCampaign,
+    resendCampaignFailed,
     generateMonthlyInvoices,
     markOverdueInvoices,
   });

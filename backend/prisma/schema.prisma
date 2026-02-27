@@ -181,7 +181,8 @@ model Campaign {
   errorMessage String?  // motivo da falha (ex: limite diário) para campanhas agendadas
   sentAt       DateTime? // quando foi enviada (para limite diário)
   scheduledAt  DateTime? // agendamento: data/hora para disparo
-  repeatRule   String?  // none | daily | weekly
+  repeatRule   String?  // none | daily | weekly | weekdays
+  repeatWeekdays String? // JSON array 0-6, ex: "[1,3,5]" = seg,qua,sex. Usado quando repeatRule=weekdays
   mentionAll   Boolean  @default(false) // ao disparar, mencionar todos os participantes do grupo
   createdAt    DateTime @default(now())
 

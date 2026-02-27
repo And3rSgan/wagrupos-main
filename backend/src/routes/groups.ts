@@ -37,11 +37,15 @@ router.get("/", async (req: AuthRequest, res) => {
   }
 });
 
-/** Sincroniza grupos do WhatsApp e atualiza fotos/participantes */
+/** Sincroniza grupos do WhatsApp e atualiza fotos/participantes. Opcional: sessionId para sincronizar só uma conexão. */
 router.post("/sync", async (req: AuthRequest, res) => {
   try {
     const companyId = requireCompany(req);
-    await fetchGroupsFromRemote(companyId);
+    const sessionId = (req.body?.sessionId ?? req.query?.sessionId) as string | undefined;
+    if (sessionId && typeof sessionId !== "string") {
+      return res.status(400).json({ message: "sessionId inválido" });
+    }
+    await fetchGroupsFromRemote(companyId, sessionId);
     const groups = await listGroupsFull(companyId);
     res.json(groups);
   } catch (err: any) {

@@ -17,6 +17,10 @@ import Avatar from "@mui/material/Avatar";
 import Chip from "@mui/material/Chip";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import SyncIcon from "@mui/icons-material/Sync";
@@ -51,6 +55,8 @@ export default function GroupsPage() {
   const [syncing, setSyncing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [tab, setTab] = useState<string>("all");
+  /** Quando há mais de uma conexão, qual usar para sincronizar (id da sessão). */
+  const [syncConnectionId, setSyncConnectionId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredGroups = tab === "all" ? groups : groups.filter((g) => g.sessionId === tab);
@@ -64,6 +70,13 @@ export default function GroupsPage() {
       ]);
       setGroups(groupsRes.data);
       setSessions(sessionsRes.data.map((s) => ({ id: s.id, name: s.name, isDefault: s.isDefault })));
+      if (sessionsRes.data.length > 1) {
+        const defaultOrFirst = sessionsRes.data.find((s) => s.isDefault) ?? sessionsRes.data[0];
+        const validId = defaultOrFirst?.id;
+        if (validId && (!syncConnectionId || !sessionsRes.data.some((s) => s.id === syncConnectionId))) {
+          setSyncConnectionId(validId);
+        }
+      }
       if (tab !== "all" && !sessionsRes.data.some((s) => s.id === tab)) {
         setTab("all");
       }
@@ -85,8 +98,9 @@ export default function GroupsPage() {
   async function handleSync() {
     setSyncing(true);
     try {
+      const payload = sessions.length > 1 && syncConnectionId ? { sessionId: syncConnectionId } : undefined;
       const [groupsRes, sessionsRes] = await Promise.all([
-        api.post<Group[]>("/groups/sync"),
+        api.post<Group[]>("/groups/sync", payload),
         api.get<Session[]>("/whatsapp/sessions"),
       ]);
       setGroups(groupsRes.data);
@@ -169,6 +183,33 @@ export default function GroupsPage() {
         </>
       }
     >
+      {sessions.length > 1 && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+          <FormControl size="small" sx={{ minWidth: 260 }}>
+            <InputLabel id="sync-connection-label">Conexão para sincronizar</InputLabel>
+            <Select
+              labelId="sync-connection-label"
+              label="Conexão para sincronizar"
+              value={syncConnectionId}
+              onChange={(e) => setSyncConnectionId(e.target.value)}
+            >
+              {sessions.map((s) => (
+                <MenuItem key={s.id} value={s.id}>
+                  {s.name}{s.isDefault ? " (padrão)" : ""}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button
+            variant="contained"
+            startIcon={<SyncIcon sx={syncing ? { animation: `${spin} 1s linear infinite` } : undefined} />}
+            onClick={handleSync}
+            disabled={syncing}
+          >
+            {syncing ? "Sincronizando..." : "Sincronizar grupos"}
+          </Button>
+        </Box>
+      )}
       {sessions.length > 0 && (
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
           <Tab

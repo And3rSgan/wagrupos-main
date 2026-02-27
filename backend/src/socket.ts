@@ -10,7 +10,7 @@ const jwtSecret = env.jwtSecret;
 
 export function setupSocket(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
-    cors: { origin: env.corsOrigin, credentials: true },
+    cors: { origin: env.corsOrigins, credentials: true },
     path: "/socket.io",
   });
 

@@ -97,3 +97,11 @@ export function onAuthFailure(cb: (sessionId: string) => void): () => void {
   s.on("whatsapp:auth_failure", handler);
   return () => s.off("whatsapp:auth_failure", handler);
 }
+
+/** Escuta evento de campanha atualizada (status/progresso). Atualize a lista de campanhas ao receber. */
+export function onCampaignUpdated(cb: () => void): () => void {
+  const s = getSocket();
+  if (!s) return () => {};
+  s.on("campaign:updated", cb);
+  return () => s.off("campaign:updated", cb);
+}

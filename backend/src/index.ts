@@ -66,8 +66,10 @@ app.use(hppMiddleware);
 app.use(generalRateLimiter);
 app.use(
   cors({
-    origin: env.corsOrigin,
+    origin: env.corsOrigins,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 app.use(express.json({ limit: bodySizeLimit }));
@@ -205,9 +207,18 @@ app.use("/api/link-preview", linkPreviewRoutes);
 
 app.use(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  (err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    const origin = req.get("Origin");
+    if (origin && env.corsOrigins.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
     if (err.name === "MulterError" && err.code === "LIMIT_FILE_SIZE") {
-      res.status(413).json({ message: "Arquivo muito grande. Logo: até 5 MB; favicon/ícone: até 512 KB." });
+      res.status(413).json({ message: "Arquivo muito grande. Logo: até 5 MB; favicon/ícone: até 512 KB; campanhas: até 16 MB." });
+      return;
+    }
+    if (err instanceof Error && err.message && /tipo não permitido|não permitido/i.test(err.message)) {
+      res.status(400).json({ message: err.message });
       return;
     }
     logger.error("API", "Erro interno não tratado", err);

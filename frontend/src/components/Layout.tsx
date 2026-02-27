@@ -5,6 +5,7 @@ import { canAccessMenu } from "../utils/menuPermissions";
 import { useBranding } from "../branding/BrandingContext";
 import { useTheme } from "../theme/ThemeContext";
 import { getSystemTitle } from "../systemSettings";
+import { APP_VERSION } from "../config/version";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
@@ -218,6 +219,11 @@ export function Layout() {
             Como usar
           </MenuItem>
         </nav>
+        <Tooltip title={`Versão ${APP_VERSION}`} placement="right">
+          <div className="zest-sidebar-version" style={{ padding: "12px 16px", marginTop: "auto", flexShrink: 0, borderTop: "1px solid var(--zest-sidebar-border, rgba(0,0,0,0.12))", color: "var(--zest-sidebar-text-muted, #666)", fontSize: 12 }}>
+            v{APP_VERSION}
+          </div>
+        </Tooltip>
       </aside>
 
       <div className="zest-main">

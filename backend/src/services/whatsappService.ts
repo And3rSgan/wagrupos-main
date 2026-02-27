@@ -84,9 +84,9 @@ const ensureClientsAndWaitReady = async (sessions: SessionForSync[]): Promise<Se
   return sessions.filter((s) => isClientReady(s.id));
 };
 
-export const fetchGroupsFromRemote = async (companyId: string) => {
+export const fetchGroupsFromRemote = async (companyId: string, sessionId?: string) => {
   const sessions = await prisma.whatsappSession.findMany({
-    where: { companyId },
+    where: sessionId ? { companyId, id: sessionId } : { companyId },
     orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     select: {
       id: true,
@@ -99,6 +99,10 @@ export const fetchGroupsFromRemote = async (companyId: string) => {
   });
   for (const s of sessions) {
     setSessionLabel(s.id, { sessionName: s.name, companyName: s.company.name });
+  }
+
+  if (sessionId && sessions.length === 0) {
+    throw new Error("Conexão não encontrada.");
   }
 
   let connectedSessions = sessions.filter((s) => isClientReady(s.id));
@@ -294,17 +298,49 @@ export const sendMessageToGroup = async (
   const waId = group.waId;
   const dbGroupId = group.id;
 
-  const sendRecord = await prisma.messageSend.create({
-    data: {
-      userId: userId!,
-      groupId: dbGroupId,
-      messageText: message,
-      imagePath: imagePath ?? undefined,
-      linkUrl: linkUrl ?? undefined,
-      campaignId: campaignId ?? undefined,
-      status: "pending",
-    },
-  });
+  let sendRecord: { id: string };
+  if (campaignId) {
+    const existing = await prisma.messageSend.findFirst({
+      where: { campaignId, groupId: dbGroupId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (existing && existing.status === "sent") {
+      return { ok: true };
+    }
+    if (existing && existing.status === "failed") {
+      await prisma.messageSend.update({
+        where: { id: existing.id },
+        data: { status: "pending", error: null },
+      });
+      sendRecord = { id: existing.id };
+    } else if (existing) {
+      sendRecord = { id: existing.id };
+    } else {
+      sendRecord = await prisma.messageSend.create({
+        data: {
+          userId: userId!,
+          groupId: dbGroupId,
+          messageText: message,
+          imagePath: imagePath ?? undefined,
+          linkUrl: linkUrl ?? undefined,
+          campaignId,
+          status: "pending",
+        },
+      });
+    }
+  } else {
+    sendRecord = await prisma.messageSend.create({
+      data: {
+        userId: userId!,
+        groupId: dbGroupId,
+        messageText: message,
+        imagePath: imagePath ?? undefined,
+        linkUrl: linkUrl ?? undefined,
+        campaignId: campaignId ?? undefined,
+        status: "pending",
+      },
+    });
+  }
 
   let mentionIds: string[] = [];
   if (mentionAll) {
@@ -327,29 +363,63 @@ export const sendMessageToGroup = async (
       let absolutePath = imagePath;
       if (imagePath.startsWith("/uploads/")) {
         absolutePath = path.resolve(process.cwd(), imagePath.slice(1));
+      } else if (imagePath.startsWith("uploads/")) {
+        absolutePath = path.resolve(process.cwd(), imagePath);
       } else if (!path.isAbsolute(imagePath)) {
         absolutePath = path.resolve(process.cwd(), imagePath);
       }
 
       if (!fs.existsSync(absolutePath)) {
-        throw new Error("Arquivo de mídia não encontrado");
+        throw new Error(`Arquivo de mídia não encontrado: ${absolutePath}`);
       }
 
       const buffer = fs.readFileSync(absolutePath);
       const ext = path.extname(absolutePath).toLowerCase();
-      const audioExts = [".ogg", ".opus", ".mp3", ".m4a", ".amr", ".aac", ".webm"];
+      const fileName = path.basename(absolutePath);
+
+      const imageExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"];
+      const videoExts = [".mp4", ".3gp", ".mov", ".avi", ".webm"];
+      const audioExts = [".ogg", ".opus", ".mp3", ".m4a", ".amr", ".aac"];
+
+      const mimeByExt: Record<string, string> = {
+        ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif",
+        ".webp": "image/webp", ".bmp": "image/bmp",
+        ".mp4": "video/mp4", ".3gp": "video/3gpp", ".mov": "video/quicktime", ".avi": "video/x-msvideo", ".webm": "video/webm",
+        ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".opus": "audio/opus", ".m4a": "audio/mp4", ".amr": "audio/amr", ".aac": "audio/aac",
+      };
+      const mimetype = mimeByExt[ext] ?? "application/octet-stream";
+
+      const isImage = imageExts.includes(ext);
+      const isVideo = videoExts.includes(ext);
       const isAudio = audioExts.includes(ext);
 
-      if (isAudio) {
+      if (isImage) {
+        await sock.sendMessage(waId, {
+          image: buffer,
+          mimetype: mimetype as "image/jpeg" | "image/png" | "image/webp" | "image/gif" | "image/bmp",
+          caption: message || undefined,
+          ...mentionPayload,
+        });
+      } else if (isVideo) {
+        await sock.sendMessage(waId, {
+          video: buffer,
+          mimetype: mimetype as "video/mp4" | "video/3gpp" | "video/quicktime" | "video/webm",
+          caption: message || undefined,
+          ...mentionPayload,
+        });
+      } else if (isAudio) {
         await sock.sendMessage(waId, {
           audio: buffer,
+          mimetype: mimetype as "audio/mpeg" | "audio/ogg" | "audio/mp4" | "audio/opus",
           ptt: true,
           ...(message ? { caption: message } : {}),
           ...mentionPayload,
         });
       } else {
         await sock.sendMessage(waId, {
-          image: buffer,
+          document: buffer,
+          mimetype,
+          fileName: fileName || "arquivo",
           caption: message || undefined,
           ...mentionPayload,
         });

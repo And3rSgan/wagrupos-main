@@ -15,3 +15,10 @@ export function emitInvoicePaid(companyId: string, payload: { invoiceId: string 
     ioInstance.to(`company:${companyId}`).emit("invoice:paid", payload);
   }
 }
+
+/** Emite para a empresa que as campanhas foram atualizadas (status, progresso). Clientes atualizam a lista. */
+export function emitCampaignUpdated(companyId: string): void {
+  if (ioInstance && companyId) {
+    ioInstance.to(`company:${companyId}`).emit("campaign:updated", {});
+  }
+}
